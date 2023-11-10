@@ -6,10 +6,7 @@ from aiogram import Bot, Dispatcher, types, F, html
 from aiogram.filters.command import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-#from aiogram.filters.callback_data import CallbackData
-#from aiogram.types import CallbackQuery
-from aiogram3_calendar.calendar_types import SimpleCalendarCallback, SimpleCalendarAction, WEEKDAYS
-#from aiogram.utils.keyboard import InlineKeyboardBuilder
+import calendar
 
 from datetime import datetime, timedelta
 
@@ -47,9 +44,15 @@ def show_start_buttons():
         keyboard = types.InlineKeyboardMarkup(inline_keyboard=start_buttons)
         return keyboard
 
+
+
 @dp.message(Command("start"))
-async def start_info(message: types.Message):
+async def start_info(message: types.Message, state: FSMContext):
     #builder = InlineKeyboardBuilder()
+
+    #await bot.set_chat_menu_button(menu_button="")
+    await state.update_data(rec_flag=False)
+    await state.update_data(reg_flag=False)
     await message.answer(f"Здравствуйте, {html.quote(message.from_user.full_name)}! Истоки рады приветствовать Вас!",
                          reply_markup=show_start_buttons()
                          )
@@ -82,22 +85,11 @@ async def record(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query(F.data == "map_route_point")
 async def show_point(callback: types.CallbackQuery):
-    await bot.send_location(callback.message.chat.id, 54.7858485323177, 31.87947811552349)
+    await bot.send_venue(callback.message.chat.id, 54.7858485323177, 31.87947811552349,
+                         "Гнёздовские курганы. Куган Л-13", 'Музей-заповедник "Гнёздово"')
+    await callback.message.answer("Курган Л-13, раскопанный в 1949 г. экспедицией под руководством выдающегося археолога Д.А. Авдусина, также располагается в Лесной группе курганного могильника Гнездово. Название группы, думаю, понятно откуда. Раскопано в том полевом сезоне было 42 курганные насыпи, многие из которых дали весьма интересный материал. Однако все внимание археологического сообщества, безусловно, было обращено именно на курган №13. Все дело, конечно же, в надписи, которая является до сих древнейшей кириллической надписью на нашей территории. За это рекультивированный после раскопок курган Л-13 удостоился памятника, красующегося на его вершине.")
 
 
-@dp.callback_query(F.data == "calendar")
-async def show_calendar(callback: types.CallbackQuery):
-    await callback.message.answer("Календарь мероприятий", reply_markup=create_calendar())
-
-
-"""@dp.callback_query(F.data == "calendar")
-async def show_calendar(callback: types.CallbackQuery):
-    today = datetime.date.today()
-    calendar = types.InlineKeyboardMarkup()
-    calendar.add(types.InlineKeyboardButton(text="<<"))
-    calendar.add(types.InlineKeyboardButton(text='>>'))
-    await bot.send_message(chat_id=callback.message.chat.id, reply_markup=calendar)
-"""
 
 @dp.message(F.text == "Изменить")
 async def change_record(message: types.Message, state: FSMContext):
@@ -110,7 +102,7 @@ async def change_record(message: types.Message, state: FSMContext):
 @dp.message(F.text == "Подтвердить")
 async def get_last_reg_data(message: types.Message, state: FSMContext):
     await state.update_data(reg_flag=True)
-    await message.answer("Аккаунт создан.")
+    await message.answer("Аккаунт создан.", reply_markup=show_start_buttons())
 
 
 @dp.message(F.text)
