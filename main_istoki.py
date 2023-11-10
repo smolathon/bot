@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 
 
 logging.basicConfig(level=logging.INFO)
-bot = Bot(token="5312287104:AAFlroDksm1FoI_AaVVVflx_-l1_TqUQpGA")
+bot = Bot(token="")
 dp = Dispatcher()
 
 
