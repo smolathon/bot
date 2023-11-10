@@ -1,15 +1,21 @@
 import asyncio
 import logging
+import calendar
+import datetime
 from aiogram import Bot, Dispatcher, types, F, html
 from aiogram.filters.command import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-
+#from aiogram.filters.callback_data import CallbackData
+#from aiogram.types import CallbackQuery
+from aiogram3_calendar.calendar_types import SimpleCalendarCallback, SimpleCalendarAction, WEEKDAYS
 #from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+from datetime import datetime, timedelta
 
 
 logging.basicConfig(level=logging.INFO)
-bot = Bot(token="")
+bot = Bot(token="5312287104:AAFlroDksm1FoI_AaVVVflx_-l1_TqUQpGA")
 dp = Dispatcher()
 
 
@@ -41,6 +47,89 @@ def show_start_buttons():
         keyboard = types.InlineKeyboardMarkup(inline_keyboard=start_buttons)
         return keyboard
 
+def create_calendar(year: int = datetime.now().year, month: int = datetime.now().month):
+    day = None
+    calendar_butt = []
+    #ignore_callback = SimpleCalendarCallback(
+        #act=SimpleCalendarAction.IGNORE, year=year, month=month,
+        #day=0)  # for buttons with no answer
+
+    # First row - Month and Year
+    calendar_butt.append(
+        [types.InlineKeyboardButton(
+                text="<<",
+                callback_data=SimpleCalendarCallback(
+                    act=SimpleCalendarAction.PREV_YEAR,
+                    year=year, month=month,
+                    day=1).pack()
+            ),
+         types.InlineKeyboardButton(
+                text=f'{calendar.month_name[month]} {str(year)}'#,
+                #callback_data=ignore_callback.pack()
+         ),
+         types.InlineKeyboardButton(
+                text=">>",
+                callback_data=SimpleCalendarCallback(
+                    act=SimpleCalendarAction.NEXT_YEAR,
+                    year=year,
+                    month=month,
+                    day=1).pack()
+         )
+        ]
+    )
+
+    # Second row - Week Days
+    calendar_butt.append(
+        [types.InlineKeyboardButton(
+            text=day, #callback_data=ignore_callback.pack()
+        ) for day in WEEKDAYS]
+    )
+
+    # Calendar rows - Days of month
+    month_calendar = calendar.monthcalendar(year, month)
+    for week in month_calendar:
+        calendar_row = []
+        for day in week:
+            if day == 0:
+                calendar_row.append(
+                    types.InlineKeyboardButton(text=" "))#, callback_data=ignore_callback.pack()))
+                continue
+            calendar_row.append(types.InlineKeyboardButton(
+                text=str(day),
+                callback_data=SimpleCalendarCallback(
+                    act=SimpleCalendarAction.DAY, year=year, month=month, day=day).pack()
+            ))
+        calendar_butt.append(calendar_row)
+
+    # Last row - Buttons
+    calendar_butt.append(
+        [
+            types.InlineKeyboardButton(
+                text="<",
+                callback_data=SimpleCalendarCallback(
+                    act=SimpleCalendarAction.PREV_MONTH,
+                    year=year,
+                    month=month,
+                    day=None).pack()
+            ),
+            types.InlineKeyboardButton(
+                text=" ",
+                #callback_data=ignore_callback.pack()
+            ),
+            types.InlineKeyboardButton(
+                text=">",
+                callback_data=SimpleCalendarCallback(
+                    act=SimpleCalendarAction.NEXT_MONTH,
+                    year=year,
+                    month=month,
+                    day=None).pack()
+            )
+        ]
+    )
+
+    inline_kb = types.InlineKeyboardMarkup(inline_keyboard=calendar_butt, row_width=7)
+    return inline_kb
+
 
 @dp.message(Command("start"))
 async def start_info(message: types.Message):
@@ -53,6 +142,7 @@ async def start_info(message: types.Message):
 @dp.callback_query(F.data == "registration")
 async def record(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(reg_flag=False)
+    await state.update_data(rec_flag=False)
     await callback.message.answer("Введите свои никнейм, почту и"
                                   " пароль через запятую. Например: \nЯЛюблюСмоленск, "
                                   "ilovesmolensk@mail.ru, 67ilovesmolensk2023")
@@ -78,6 +168,20 @@ async def record(callback: types.CallbackQuery, state: FSMContext):
 async def show_point(callback: types.CallbackQuery):
     await bot.send_location(callback.message.chat.id, 54.7858485323177, 31.87947811552349)
 
+
+@dp.callback_query(F.data == "calendar")
+async def show_calendar(callback: types.CallbackQuery):
+    await callback.message.answer("Календарь мероприятий", reply_markup=create_calendar())
+
+
+"""@dp.callback_query(F.data == "calendar")
+async def show_calendar(callback: types.CallbackQuery):
+    today = datetime.date.today()
+    calendar = types.InlineKeyboardMarkup()
+    calendar.add(types.InlineKeyboardButton(text="<<"))
+    calendar.add(types.InlineKeyboardButton(text='>>'))
+    await bot.send_message(chat_id=callback.message.chat.id, reply_markup=calendar)
+"""
 
 @dp.message(F.text == "Изменить")
 async def change_record(message: types.Message, state: FSMContext):
