@@ -6,13 +6,19 @@ from aiogram import Bot, Dispatcher, types, F, html
 from aiogram.filters.command import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from requests import get, post
+#from aiogram.filters.callback_data import CallbackData
+#from aiogram.types import CallbackQuery
 import calendar
+#from calendar.types import SimpleCalendarCallback, SimpleCalendarAction, WEEKDAYS
+#from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from datetime import datetime, timedelta
 
 
+URL = "https://449d-212-3-142-106.ngrok.io"
 logging.basicConfig(level=logging.INFO)
-bot = Bot(token="")
+bot = Bot(token="5312287104:AAFlroDksm1FoI_AaVVVflx_-l1_TqUQpGA")
 dp = Dispatcher()
 
 
@@ -46,11 +52,48 @@ def show_start_buttons():
 
 
 
+def create_calendar():
+    year = datetime.now().year
+    month = datetime.now().month
+    calendar_butt = []
+    days_count = {1: 31, 2: 28, 3: 31, 4: 30, 5: 31, 6: 30, 7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31}
+    calendar_butt.append([types.InlineKeyboardButton(text="<<", callback_data=" "),
+                          types.InlineKeyboardButton(text=str(year) + ', ' + str(month), callback_data=" "),
+                          types.InlineKeyboardButton(text=">>", callback_data=" ")])
+    calendar_butt.append([types.InlineKeyboardButton(text=x, callback_data=" ")
+                          for x in ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']])
+    if (year % 4 == 0 and year % 100 != 0 and year % 400 != 0) or year % 400 == 0:
+        days_count[2] = 29
+    days = []
+    day_countdown = datetime(year, month, 1)
+    for i in range(day_countdown.weekday()):
+        days.append(" ")
+    for i in range(days_count[month]):
+        days.append(str(i+1))
+    for i in range(7 - len(days) % 7):
+        days.append(" ")
+    for w in range((len(days)+6)//7):
+        week = []
+        for d in range(7):
+            week.append(types.InlineKeyboardButton(text=days[d+w*7], callback_data="show_event"))
+        calendar_butt.append(week)
+    inline_kb = types.InlineKeyboardMarkup(inline_keyboard=calendar_butt)
+    return inline_kb
+
+
 @dp.message(Command("start"))
 async def start_info(message: types.Message, state: FSMContext):
     #builder = InlineKeyboardBuilder()
 
-    #await bot.set_chat_menu_button(menu_button="")
+    c1 = types.BotCommand(command='start', description='Запуск')
+    #c2 = types.BotCommand(command='help', description='Click for Help')
+    c2 = types.BotCommand(command='registration', description="Регистрация")
+    c3 = types.BotCommand(command='record', description='Запись')
+    c4 = types.BotCommand(command='map_route_point', description='Точки')
+    await bot.set_my_commands([c1, c2, c3, c4])
+    await bot.set_chat_menu_button(message.chat.id, types.MenuButtonCommands(type='commands'))
+
+    #await bot.set_chat_menu_button(menu_button=types.MenuButtonCommands(type='commands'))
     await state.update_data(rec_flag=False)
     await state.update_data(reg_flag=False)
     await message.answer(f"Здравствуйте, {html.quote(message.from_user.full_name)}! Истоки рады приветствовать Вас!",
@@ -90,6 +133,10 @@ async def show_point(callback: types.CallbackQuery):
     await callback.message.answer("Курган Л-13, раскопанный в 1949 г. экспедицией под руководством выдающегося археолога Д.А. Авдусина, также располагается в Лесной группе курганного могильника Гнездово. Название группы, думаю, понятно откуда. Раскопано в том полевом сезоне было 42 курганные насыпи, многие из которых дали весьма интересный материал. Однако все внимание археологического сообщества, безусловно, было обращено именно на курган №13. Все дело, конечно же, в надписи, которая является до сих древнейшей кириллической надписью на нашей территории. За это рекультивированный после раскопок курган Л-13 удостоился памятника, красующегося на его вершине.")
 
 
+@dp.callback_query(F.data == "calendar")
+async def show_calendar(callback: types.CallbackQuery):
+    await callback.message.answer("Календарь мероприятий", reply_markup=create_calendar())
+
 
 @dp.message(F.text == "Изменить")
 async def change_record(message: types.Message, state: FSMContext):
@@ -102,6 +149,14 @@ async def change_record(message: types.Message, state: FSMContext):
 @dp.message(F.text == "Подтвердить")
 async def get_last_reg_data(message: types.Message, state: FSMContext):
     await state.update_data(reg_flag=True)
+    data = await state.get_data()
+    username, email, password = data["nickname"], data["mail"],  data["password"]
+    post(URL,
+         json={"username": str(username),
+               "email": str(email),
+               "password": str(password),
+               "role": "User"
+               })
     await message.answer("Аккаунт создан.", reply_markup=show_start_buttons())
 
 
