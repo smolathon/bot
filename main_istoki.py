@@ -99,7 +99,7 @@ async def start_info(message: types.Message, state: FSMContext):
     #await bot.set_chat_menu_button(menu_button=types.MenuButtonCommands(type='commands'))
     await state.update_data(rec_flag=False)
     await state.update_data(reg_flag=False)
-    await state.update_data(get_route_name=False)
+    await state.update_data(get_route_num=False)
     await message.answer(f"Здравствуйте, {html.quote(message.from_user.full_name)}! Истоки рады приветствовать Вас!",
                          reply_markup=show_start_buttons()
                          )
@@ -131,7 +131,8 @@ async def record(callback: types.CallbackQuery, state: FSMContext):
 
 
 @dp.callback_query(F.data == "log_in")
-async def log_in(callback: types.CallbackQuery):
+async def log_in(callback: types.CallbackQuery, state: FSMContext):
+    await state.update_data(reg_flag=False)
     await callback.message.answer("Введите никнейм, почту и пароль.")
 
 
@@ -236,13 +237,16 @@ async def get_rig_data(message: types.Message, state: FSMContext):
                              reply_markup=keyboard)
     else:
         today = datetime.now()
-        ans = json.loads(get(f"https://89ef-212-3-142-182.ngrok.io/user/test_user").content)
-        response = post("https://89ef-212-3-142-182.ngrok.io/ticket",
+        data = await state.get_data()
+        username = data['nickname']
+        ans = json.loads(get(f"{URL}/user/{username}").content)
+        response = post(f"{URL}/ticket",
                          json={"name": message.text,
                          "reg_date": [today.year, today.month, today.day],
                          "event_id": 1,
                          "user_id": ans['id']
                          })
+        await message.answer("Вы записаны.")
 
 async def main():
     await dp.start_polling(bot)
