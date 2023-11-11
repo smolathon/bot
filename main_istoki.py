@@ -17,10 +17,11 @@ import calendar
 from datetime import datetime, timedelta
 
 
-URL = "https://f12b-212-3-142-182.ngrok.io"
+URL = "https://3091-212-3-142-182.ngrok.io"
 logging.basicConfig(level=logging.INFO)
-bot = Bot(token="")
+bot = Bot(token="6869356792:AAEhzhv6bMMUEUvKTnPkTMkfo5LltMvu5Zk")
 dp = Dispatcher()
+events_dates = ['2023 11 13']
 
 
 class Form(StatesGroup):
@@ -78,7 +79,11 @@ def create_calendar():
         week = []
         for d in range(7):
             #if str(d+w*7) not in events_days:
-            week.append(types.InlineKeyboardButton(text=days[d+w*7], callback_data="show_no_event"))
+            if d+w*7 == 13:
+                week.append(types.InlineKeyboardButton(text=days[d+w*7], callback_data="show_no_event13"))
+            else:
+                week.append(types.InlineKeyboardButton(text=days[d+w*7], callback_data="show_no_event"))
+
             '''
             else:
                 week.append(types.InlineKeyboardButton(text=days[d+w*7],
@@ -119,6 +124,7 @@ async def record(callback: types.CallbackQuery, state: FSMContext):
 async def record(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(rec_flag=False)
     if (await state.get_data())["reg_flag"]:
+        await callback.message.answer(f"На данный момент доступна запись на {events_dates[0]}.")
         await callback.message.answer("Введите свои фамилию и имя. "
                                       "Например: Иванов Иван")
         await callback.answer()
@@ -138,7 +144,7 @@ async def log_in(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query(F.data == "map_route_point")
 async def show_point(callback: types.CallbackQuery, state: FSMContext):
-    ans = json.loads(get(f"{URL}/route/0").content)
+    ans = json.loads(get(f"https://3091-212-3-142-182.ngrok.io/route/0").content)
     x = 1
     for route in ans['routes']:
         await callback.message.answer(str(x) + ')' + ' ' + route['title'] + '\n' + route['description'])
@@ -200,11 +206,15 @@ async def get_last_reg_data(callback: types.CallbackQuery, state: FSMContext):
             await callback.message.answer("Аккаунт создан.", reply_markup=show_start_buttons())
 
 
-@dp.callback_query(F.data == "show_no_event")
+"""@dp.callback_query(F.data == "show_no_event")
 async def show_no_info(callback: types.CallbackQuery):
     await callback.message.answer("На этот день не запланировано никаких мероприятий")
+"""
 
-
+@dp.callback_query(F.data == "show_no_event")
+async def show_info(callback: types.CallbackQuery):
+    resp = json.loads(get(f"{URL}/event/{events_dates[0]}").content)['events'][0]
+    await callback.message.answer(f"{resp['date']}\n{resp['title']}\n{resp['description']}")
 
 
 @dp.message(F.text)
@@ -219,15 +229,16 @@ async def get_rig_data(message: types.Message, state: FSMContext):
     if data["get_route_num"]:
         ans = json.loads(get(f"{URL}/route/0").content)['routes'][int(message.text)-1]
         await message.answer(ans['title'] + '\n' + ans['description'] + '\n Ваш маршрут с описанием.')
-        await bot.send_photo(message.chat.id, ans['image'])
+        #await bot.send_photo(message.chat.id, ans['image'])
         points_ans = json.loads(get(f"{URL}/point/{ans['id']}").content)['points']
         for point in points_ans:
             await bot.send_venue(message.chat.id, point['location'][0], point['location'][1],
                                  point['title'], point['description'])
-            await bot.send_photo(message.chat.id, point['image'])
+            #await bot.send_photo(message.chat.id, point['image'])
 
 
         await state.update_data(get_route_num=False)
+        await message.answer("Меню", reply_markup=show_start_buttons())
     elif not data["reg_flag"]:
         nickname, mail, password = message.text.split(",")
         await state.update_data(nickname=nickname)
